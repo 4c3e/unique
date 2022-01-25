@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
   if (tb_init() != 0)
     return 1; // couldn't initialize our screen
 
-  tb_set_input_mode(5);
+  tb_set_output_mode(TB_OUTPUT_TRUECOLOR);
   // set up our colors
   uint32_t bg = 0x88B8A0;
   uint32_t fg = 0xa281c6;
@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
   int y = (h/2);
 
   // put some text into those coordinates
-  tb_set_cell(x-4, y, 'h', fg, bg);
+  tb_printf(x-4, y, fg, bg, "hello world");
 
   // flush the output to the screen
   tb_present();
