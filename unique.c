@@ -120,7 +120,7 @@ int main(int argc, char **argv)
       case TB_EVENT_KEY:
         if (ev.key == TB_KEY_CTRL_C) {
           tb_shutdown();
-          break;
+          return 0;
         }
       case TB_EVENT_MOUSE:
         handle_mouse_ev(&ev);
