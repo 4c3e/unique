@@ -215,7 +215,9 @@ extern "C" { // __ffi_strip
 #define TB_OUTPUT_256           2
 #define TB_OUTPUT_216           3
 #define TB_OUTPUT_GRAYSCALE     4
-#define TB_OUTPUT_TRUECOLOR     5
+#ifdef TB_OPT_TRUECOLOR
+#define TB_OUTPUT_TRUECOLOR 5
+#endif
 
 /* Common function return values unless otherwise noted */
 #define TB_OK                   0
@@ -416,7 +418,7 @@ int tb_set_input_mode(int mode);
  *    Example usage:
  *      tb_set_cell(x, y, '@', TB_BLACK | TB_BOLD, TB_RED);
  *
- * 2. TB_OUTPUT_256        => [0..256]
+ * 2. TB_OUTPUT_256        => [0..255]
  *    In this mode you get 256 distinct colors:
  *      0x00 - 0x07: the 8 colors as in TB_OUTPUT_NORMAL
  *      0x08 - 0x0f: TB_<color> | TB_BOLD
@@ -434,6 +436,10 @@ int tb_set_input_mode(int mode);
  * 4. TB_OUTPUT_GRAYSCALE  => [0..23]
  *    This mode supports the 4th range of TB_OUTPUT_256 only, but you dont need
  *    to provide an offset.
+ *
+ * 5. TB_OUTPUT_TRUECOLOR  => [0x000000..0xffffff]
+ *    This mode provides 24-bit color on supported terminals. The format is
+ *    0xRRGGBB.
  *
  * If mode is TB_OUTPUT_CURRENT, the function returns the current output mode.
  *
@@ -500,6 +506,9 @@ struct tb_cell *tb_cell_buffer();
 #endif /* __TERMBOX_H */
 
 #ifdef TB_IMPL
+#ifndef TB_OPT_TRUECOLOR
+#define TB_OUTPUT_TRUECOLOR (-1)
+#endif
 
 #define if_err_return(rv, expr)                                                \
     if (((rv) = (expr)) != TB_OK)                                              \
@@ -2111,6 +2120,8 @@ static int tb_deinit() {
             global.ttyfd_open = 0;
         }
     }
+
+    sigaction(SIGWINCH, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
     if (global.resize_pipefd[0] >= 0)
         close(global.resize_pipefd[0]);
     if (global.resize_pipefd[1] >= 0)
@@ -2728,7 +2739,9 @@ static int resize_if_needed() {
 }
 
 static void handle_resize(int sig) {
+    int errno_copy = errno;
     write(global.resize_pipefd[1], &sig, sizeof(sig));
+    errno = errno_copy;
 }
 
 static int send_attr(uintattr_t fg, uintattr_t bg) {
@@ -2781,23 +2794,27 @@ static int send_attr(uintattr_t fg, uintattr_t bg) {
             break;
     }
 
-    if (fg & TB_BOLD)
-        if_err_return(rv, bytebuf_puts(&global.out, global.caps[TB_CAP_BOLD]));
+    if (global.output_mode != TB_OUTPUT_TRUECOLOR) {
+        if (fg & TB_BOLD)
+            if_err_return(rv,
+                bytebuf_puts(&global.out, global.caps[TB_CAP_BOLD]));
 
-    if (bg & TB_BOLD)
-        if_err_return(rv, bytebuf_puts(&global.out, global.caps[TB_CAP_BLINK]));
+        if (bg & TB_BOLD)
+            if_err_return(rv,
+                bytebuf_puts(&global.out, global.caps[TB_CAP_BLINK]));
 
-    if (fg & TB_UNDERLINE)
-        if_err_return(rv,
-            bytebuf_puts(&global.out, global.caps[TB_CAP_UNDERLINE]));
+        if (fg & TB_UNDERLINE)
+            if_err_return(rv,
+                bytebuf_puts(&global.out, global.caps[TB_CAP_UNDERLINE]));
 
-    if (fg & TB_ITALIC)
-        if_err_return(rv,
-            bytebuf_puts(&global.out, global.caps[TB_CAP_ITALIC]));
+        if (fg & TB_ITALIC)
+            if_err_return(rv,
+                bytebuf_puts(&global.out, global.caps[TB_CAP_ITALIC]));
 
-    if ((fg & TB_REVERSE) || (bg & TB_REVERSE))
-        if_err_return(rv,
-            bytebuf_puts(&global.out, global.caps[TB_CAP_REVERSE]));
+        if ((fg & TB_REVERSE) || (bg & TB_REVERSE))
+            if_err_return(rv,
+                bytebuf_puts(&global.out, global.caps[TB_CAP_REVERSE]));
+    }
 
     if_err_return(rv, send_sgr(cfg, cbg));
 
@@ -2855,15 +2872,15 @@ static int send_sgr(uintattr_t fg, uintattr_t bg) {
 
         case TB_OUTPUT_TRUECOLOR:
             send_literal(rv, "\x1b[38;2;");
-            send_num(rv, nbuf, fg >> 16 & 0xff);
+            send_num(rv, nbuf, (fg >> 16) & 0xff);
             send_literal(rv, ";");
-            send_num(rv, nbuf, fg >> 8 & 0xff);
+            send_num(rv, nbuf, (fg >> 8) & 0xff);
             send_literal(rv, ";");
             send_num(rv, nbuf, fg & 0xff);
             send_literal(rv, ";48;2;");
-            send_num(rv, nbuf, bg >> 16 & 0xff);
+            send_num(rv, nbuf, (bg >> 16) & 0xff);
             send_literal(rv, ";");
-            send_num(rv, nbuf, bg >> 8 & 0xff);
+            send_num(rv, nbuf, (bg >> 8) & 0xff);
             send_literal(rv, ";");
             send_num(rv, nbuf, bg & 0xff);
             send_literal(rv, "m");
