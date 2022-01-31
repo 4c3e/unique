@@ -1,2 +1,2 @@
 make:
-	gcc -o unique unique.c
+	gcc -o unique hsluv.c unique.c -lm
