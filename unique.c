@@ -30,8 +30,6 @@ int STOOL_W;
 double g_fg_h, g_fg_s, g_fg_l;
 double g_bg_h, g_bg_s, g_bg_l;
 
-
-
 // pen char
 uint32_t g_ch;
 
@@ -239,7 +237,7 @@ int segment_mouse_click(struct tb_event *ev)
   if (x > 0 && y >= 0 && x < CANVAS_W_B + 1 && y < TTOOL_H) {
     return 1;
   }
-  if (x > CANVAS_W + 1 && y > TTOOL_H && x < CANVAS_W + STOOL_W && y < CANVAS_H + TTOOL_H) {
+  if (x > CANVAS_W + 1 && y > TTOOL_H && x < CANVAS_W + STOOL_W + 1 && y < WINDOW_H) {
     return 2;
   }
   tb_present();
@@ -311,7 +309,7 @@ void stool_handle_click(struct tb_event *ev)
   int y0 = TTOOL_H + 1;
   int x1 = WINDOW_W;
   int y1 = WINDOW_H;
-  if (x >= x0 && x < x1 && y >= y0 && y < y1) {
+  if (x >= x0 && x < x1 && y >= y0 && y <= y1) {
     int norm_x = x - x0;
     int norm_y = y - y0; 
     int width = x1 - x0;
@@ -349,7 +347,7 @@ int main(int argc, char **argv)
   g_bg_s = 50;
   g_bg_l = 50;
   g_ch = U' ';
-  unicode_page_start = 0x0020;
+  unicode_page_start = 0x1fb00;
   int curr_segment = -1;
 
   struct tb_event ev;
